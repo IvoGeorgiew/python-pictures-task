@@ -1,3 +1,14 @@
+document.addEventListener("mousemove", function (event) {
+  const coordinatesDiv = document.getElementById("coordinatesDiv");
+
+  const coordinates = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+
+  coordinatesDiv.innerText = `X: ${coordinates.x}, Y: ${coordinates.y}`;
+});
+
 document.addEventListener("click", function (event) {
   if (event.button === 0) {
     const data = {
