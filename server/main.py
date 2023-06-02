@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import threading
-import os
+import sqlite3
 
 class Coordinates(BaseModel):
     x: int
@@ -18,27 +18,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def capture_image():
+webcam = cv2.VideoCapture(0)
+
+def capture_image(coordinates: Coordinates):
     # Capture an image from the webcam
     webcam = cv2.VideoCapture(0)
     ret, frame = webcam.read()
     webcam.release()
 
+
+    conn = sqlite3.connect('coordinates.db')
+    cursor = conn.cursor()
+
     if ret:
-        # Save the captured frame as an image
-        current_dir = os.getcwd()
-        image_path = os.path.join(current_dir, 'new.jpg')
-        cv2.imwrite(image_path, frame)
-        print(f"Image saved: {image_path}")
+        cv2.imshow('frame', frame)
+        _, image_buffer = cv2.imencode('.jpg', frame)
+        image_data = image_buffer.tobytes()
+        cursor.execute("INSERT INTO coordinates (x, y, image) VALUES (?, ?, ?)",
+                    (coordinates.x, coordinates.y, image_data))
+        conn.commit()
+        conn.close()
+        print("New DB entry registered")
     else:
         print("Failed to capture image.")
-def run_capture_thread():
-    capture_thread = threading.Thread(target=capture_image)
+
+def run_capture_thread(coordinates: Coordinates):
+    capture_thread = threading.Thread(target=capture_image(coordinates))
     capture_thread.start()
 
 
 @app.post('/coordinates')
 async def receive_coordinates(data: Coordinates):
     print(f"Received coordinates: X={data.x}, Y={data.y}")
-    run_capture_thread()
+    run_capture_thread(data)
     return {'message': 'Coordinates received successfully'}
